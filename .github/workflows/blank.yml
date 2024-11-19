@@ -24,7 +24,7 @@ jobs:
           version: 'latest'
 
 
-       - name: Set environment variables
+      - name: Set environment variables
         run: |
           if [ "${{ matrix.env }}" == "stage" ]; then
             echo "GCP_SERVICE_ACCOUNT_KEY=$(echo -n '${{ secrets.GCP_SA_KEY_STAGE }}' | base64 -w0)" >> $GITHUB_ENV
