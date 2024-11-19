@@ -115,12 +115,6 @@ jobs:
            actual_cert=$(echo "$certificate_data" | base64 -d | awk '/BEGIN CERTIFICATE/,/END CERTIFICATE/ {print; if (/END CERTIFICATE/) exit}')
 
 
-            # Initialize the final message with the header
-            echo "" > final_message.txt
-
-
-
-
             # Extract the first domain from the certificate
             dns=$(echo "$actual_cert" | openssl x509 -text -noout | awk '/DNS:/ {print $1; exit}' | sed -e 's/DNS://' -e 's/,$//' | grep -v localhost)
 
