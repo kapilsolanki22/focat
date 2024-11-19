@@ -99,16 +99,12 @@ jobs:
         run: |
           # Get the list of ingress names, separated by commas
           names=$(kubectl get ingress | awk 'NR > 1 {printf "%s,", $1}' | sed 's/,$//')
-
-
-          # Initialize the final message with the header
-          echo "" > final_message.txt
           
 
           # Process each ingress name
           IFS="," read -r -a name_array <<< "$names"
           for name in "${name_array[@]}"; do
-            # Get the TLS certificate name from the ingress
+          # Get the TLS certificate name from the ingress
           tls_cert_name=$(kubectl describe ingress "$name" | awk '/TLS:/ {getline; print $1}')
 
             # Retrieve and decode the certificate
@@ -132,7 +128,7 @@ jobs:
             days_remaining=$(( (expiry_date - current_date) / (60*60*24) ))
             
             # Set the threshold for sending alerts
-            threshold_days=30
+            threshold_days=3000
 
             # Check if the certificate expiry is within the threshold
             if [ "$days_remaining" -le "$threshold_days" ]; then
@@ -143,7 +139,7 @@ jobs:
 
           # Check if there are certificates to notify about
           if [ "$certificates_to_notify" = true ]; then
-            echo "certificates_to_notify=true" >> $GITHUB_ENV
+            echo "Following are the INGRESS SSL certificates which will expire within ${{ env.ENVIRONMENT }} ENV:\ncertificates_to_notify=true" >> $GITHUB_ENV
             cat final_message.txt > FINAL_MESSAGE.txt
           else
             echo "No certificates are expiring within $threshold_days days."
