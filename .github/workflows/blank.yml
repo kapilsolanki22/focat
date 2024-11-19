@@ -99,17 +99,28 @@ jobs:
         run: |
           # Get the list of ingress names, separated by commas
           names=$(kubectl get ingress | awk 'NR > 1 {printf "%s,", $1}' | sed 's/,$//')
+
+
+          # Initialize the final message with the header
+          echo "" > final_message.txt
           
 
           # Process each ingress name
           IFS="," read -r -a name_array <<< "$names"
           for name in "${name_array[@]}"; do
             # Get the TLS certificate name from the ingress
-            tls_cert_name=$(kubectl describe ingress "$name" | awk '/TLS:/ {getline; print $1}')
+          tls_cert_name=$(kubectl describe ingress "$name" | awk '/TLS:/ {getline; print $1}')
 
             # Retrieve and decode the certificate
-            certificate_data=$(kubectl get secrets "$tls_cert_name" -o=json | jq -r '.data."tls.crt"')
-            actual_cert=$(echo "$certificate_data" | base64 -d | awk '/BEGIN CERTIFICATE/,/END CERTIFICATE/ {print; if (/END CERTIFICATE/) exit}')
+           certificate_data=$(kubectl get secrets "$tls_cert_name" -o=json | jq -r '.data."tls.crt"')
+           actual_cert=$(echo "$certificate_data" | base64 -d | awk '/BEGIN CERTIFICATE/,/END CERTIFICATE/ {print; if (/END CERTIFICATE/) exit}')
+
+
+            # Initialize the final message with the header
+            echo "Following are the INGRESS SSL certificates which will expire within ${{ env.ENVIRONMENT }} ENV:\n" > final_message.txt
+
+
+
 
             # Extract the first domain from the certificate
             dns=$(echo "$actual_cert" | openssl x509 -text -noout | awk '/DNS:/ {print $1; exit}' | sed -e 's/DNS://' -e 's/,$//' | grep -v localhost)
@@ -143,7 +154,7 @@ jobs:
         run: |
           webhook_url="${{ env.SLACK_WEBHOOK_URL }}"
           message_content=$(cat FINAL_MESSAGE.txt)
-          curl -X POST -H 'Content-type: application/json' --data "{ 'text': 'SSL CERTIFICATE EXPIRY:\n\nFollowing are the INGRESS SSL certificates which will expire within ${{ env.ENVIRONMENT }} ENV:\n\n$message_content'}" "$webhook_url"
+          curl -X POST -H 'Content-type: application/json' --data "{ 'text': '\n\n$message_content'}" "$webhook_url"
 
 
 
