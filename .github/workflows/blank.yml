@@ -29,17 +29,14 @@ jobs:
           if [ "${{ matrix.env }}" == "stage" ]; then
             echo "GCP_SERVICE_ACCOUNT_KEY=$(echo -n '${{ secrets.GCP_SA_KEY_STAGE }}' | base64 -w0)" >> $GITHUB_ENV
             echo "GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID_STAGE }}" >> $GITHUB_ENV
-            echo "DOMAIN_CF=${{ secrets.DOMAIN_CF_STAGE }}" >> $GITHUB_ENV
             echo "SLACK_WEBHOOK_URL=${{ secrets.SLACK_WEBHOOK_URL_STAGE }}" >> $GITHUB_ENV
           elif [ "${{ matrix.env }}" == "prod" ]; then
             echo "GCP_SERVICE_ACCOUNT_KEY=$(echo -n '${{ secrets.GCP_SA_KEY_PROD }}' | base64 -w0)" >> $GITHUB_ENV
             echo "GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID_PROD }}" >> $GITHUB_ENV
-            echo "DOMAIN_CF=${{ secrets.DOMAIN_CF_PROD }}" >> $GITHUB_ENV
             echo "SLACK_WEBHOOK_URL=${{ secrets.SLACK_WEBHOOK_URL_PROD }}" >> $GITHUB_ENV
           fi
           echo "ENVIRONMENT=${{ matrix.env }}" >> $GITHUB_ENV
 
-     
         
 
       - name: Authenticate to Google Cloud
@@ -69,31 +66,23 @@ jobs:
             gcloud container clusters get-credentials "${CLUSTER_NAME}" --zone "${CLUSTER_ZONE}"
           done
 
-
-
-
-
-
       - name: Check SSL certificate expiry
         run: |
           # Get the list of ingress names, separated by commas
           names=$(kubectl get ingress | awk 'NR > 1 {printf "%s,", $1}' | sed 's/,$//')
           
           # Initialize the final message with the header
-          echo "SSL CERTIFICATE EXPIRY:" > final_message.txt
-
-
+          echo "Following are the INGRESS SSL certificates which will expire within ${{ env.ENVIRONMENT }} ENV:\n" > final_message.txt
 
           # Process each ingress name
           IFS="," read -r -a name_array <<< "$names"
           for name in "${name_array[@]}"; do
-          # Get the TLS certificate name from the ingress
-          tls_cert_name=$(kubectl describe ingress "$name" | awk '/TLS:/ {getline; print $1}')
+            # Get the TLS certificate name from the ingress
+            tls_cert_name=$(kubectl describe ingress "$name" | awk '/TLS:/ {getline; print $1}')
 
-          # Retrieve and decode the certificate
-           certificate_data=$(kubectl get secrets "$tls_cert_name" -o=json | jq -r '.data."tls.crt"')
-           actual_cert=$(echo "$certificate_data" | base64 -d | awk '/BEGIN CERTIFICATE/,/END CERTIFICATE/ {print; if (/END CERTIFICATE/) exit}')
-
+            # Retrieve and decode the certificate
+            certificate_data=$(kubectl get secrets "$tls_cert_name" -o=json | jq -r '.data."tls.crt"')
+            actual_cert=$(echo "$certificate_data" | base64 -d | awk '/BEGIN CERTIFICATE/,/END CERTIFICATE/ {print; if (/END CERTIFICATE/) exit}')
 
             # Extract the first domain from the certificate
             dns=$(echo "$actual_cert" | openssl x509 -text -noout | awk '/DNS:/ {print $1; exit}' | sed -e 's/DNS://' -e 's/,$//' | grep -v localhost)
@@ -105,30 +94,29 @@ jobs:
             days_remaining=$(( (expiry_date - current_date) / (60*60*24) ))
             
             # Set the threshold for sending alerts
-            threshold_days=3000
+            threshold_days=500
 
             # Check if the certificate expiry is within the threshold
             if [ "$days_remaining" -le "$threshold_days" ]; then
-              echo "SSL CERTIFICATE EXPIRY:\n\nFollowing are the INGRESS SSL certificates which will expire within ${{ env.ENVIRONMENT }} ENV:\nDomain_name: $dns  Days Remaining: $days_remaining" > final_message.txt
+              echo "Domain_name: $dns  Days Remaining: $days_remaining" >> final_message.txt
               certificates_to_notify=true
             fi
           done
 
           # Check if there are certificates to notify about
           if [ "$certificates_to_notify" = true ]; then
-            echo "\ncertificates_to_notify=true" >> $GITHUB_ENV
+            echo "certificates_to_notify=true" >> $GITHUB_ENV
             cat final_message.txt > FINAL_MESSAGE.txt
           else
             echo "No certificates are expiring within $threshold_days days."
           fi
-
 
       - name: Send Slack Alert if certificates are expiring
         if: ${{ env.certificates_to_notify == 'true' }}
         run: |
           webhook_url="${{ env.SLACK_WEBHOOK_URL }}"
           message_content=$(cat FINAL_MESSAGE.txt)
-          curl -X POST -H 'Content-type: application/json' --data "{ 'text': '\n\n$message_content'}" "$webhook_url"
+          curl -X POST -H 'Content-type: application/json' --data "{ 'text': 'SSL CERTIFICATE EXPIRY:\n\n$message_content'}" "$webhook_url"
 
 
 
@@ -166,9 +154,11 @@ jobs:
 
 
 
+
+
       - name: Send alert to Slack on job failure
         if: ${{ failure() }}
         run: |
           webhook_url="${{ env.SLACK_WEBHOOK_URL }}"
           message="The SSL certificate expiry check JOB failed for ${{ env.ENVIRONMENT }} environment."
-          curl -X POST -H 'Content-type: application/json' --data "{ 'text': '\n\n$message'}" "$webhook_url"
+          curl -X POST -H 'Content-type: application/json' --data "{ 'text': 'SSL CERTIFICATE EXPIRY:\n\n$message'}" "$webhook_url"
