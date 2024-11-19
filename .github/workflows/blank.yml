@@ -29,12 +29,10 @@ jobs:
           if [ "${{ matrix.env }}" == "stage" ]; then
             echo "GCP_SERVICE_ACCOUNT_KEY=$(echo -n '${{ secrets.GCP_SA_KEY_STAGE }}' | base64 -w0)" >> $GITHUB_ENV
             echo "GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID_STAGE }}" >> $GITHUB_ENV
-            echo "DOMAIN_CF=${{ secrets.DOMAIN_CF_STAGE }}" >> $GITHUB_ENV
             echo "SLACK_WEBHOOK_URL=${{ secrets.SLACK_WEBHOOK_URL_STAGE }}" >> $GITHUB_ENV
           elif [ "${{ matrix.env }}" == "prod" ]; then
             echo "GCP_SERVICE_ACCOUNT_KEY=$(echo -n '${{ secrets.GCP_SA_KEY_PROD }}' | base64 -w0)" >> $GITHUB_ENV
             echo "GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID_PROD }}" >> $GITHUB_ENV
-            echo "DOMAIN_CF=${{ secrets.DOMAIN_CF_PROD }}" >> $GITHUB_ENV
             echo "SLACK_WEBHOOK_URL=${{ secrets.SLACK_WEBHOOK_URL_PROD }}" >> $GITHUB_ENV
           fi
           echo "ENVIRONMENT=${{ matrix.env }}" >> $GITHUB_ENV
@@ -68,130 +66,57 @@ jobs:
             gcloud container clusters get-credentials "${CLUSTER_NAME}" --zone "${CLUSTER_ZONE}"
           done
 
-
-      - name: Check SSL certificate expiry for cf.webhook.venu.bank
-        run: |
-          # Define domain and threshold
-          domain_name=$(echo | openssl s_client -connect ${{ env.DOMAIN_CF }}:443 -servername ${{ env.DOMAIN_CF }} 2>/dev/null | openssl x509 -noout -text | grep 'DNS:' | head -n 1 | sed 's/.*DNS://;s/,.*//')
-          threshold_days=3000
-      
-          # Fetch the expiry date using openssl
-          expiry_date=$(echo | openssl s_client -connect ${{ env.DOMAIN_CF }}:443 -servername ${{ env.DOMAIN_CF }} 2>/dev/null | openssl x509 -noout -dates | grep 'notAfter' | sed 's/notAfter=//')
-      
-          # Convert the expiry date to a timestamp
-          expiry_timestamp=$(date -d "$expiry_date" +"%s")
-          current_timestamp=$(date +"%s")
-          days_remaining=$(( (expiry_timestamp - current_timestamp) / (60*60*24) ))
-      
-          # Initialize message file and check for expiry
-          if [ "$days_remaining" -le "$threshold_days" ]; then
-            echo "Following are the SSL certificates for cf-webhook which will expire within ${{ env.ENVIRONMENT }} ENV:\n\nDomain_name: $domain_name $days_remaining" >> webhook_message.txt
-            certificates_to_notify=true
-            echo "certificates_to_notify=true" >> $GITHUB_ENV
-          else
-            echo "No certificates for cf.webhook.venu.bank are expiring within $threshold_days days."
-          fi
-
-
       - name: Check SSL certificate expiry
         run: |
-          # Set the threshold for alerts
-          threshold_days=30
-          certificates_to_notify=false
-      
-          # Get the list of ingress names
-          ingress_names=$(kubectl get ingress -o jsonpath='{.items[*].metadata.name}')
+          # Get the list of ingress names, separated by commas
+          names=$(kubectl get ingress | awk 'NR > 1 {printf "%s,", $1}' | sed 's/,$//')
           
+          # Initialize the final message with the header
+          echo "Following are the INGRESS SSL certificates which will expire within ${{ env.ENVIRONMENT }} ENV:\n" > final_message.txt
+
           # Process each ingress name
-          for ingress in $ingress_names; do
-            # Extract TLS certificate name from ingress
-            tls_cert_name=$(kubectl get ingress "$ingress" -o jsonpath='{.spec.tls[0].secretName}')
-            
-            # Skip if no TLS secret is associated
-            if [ -z "$tls_cert_name" ]; then
-              echo "Ingress $ingress has no TLS configuration. Skipping..."
-              continue
-            fi
-      
+          IFS="," read -r -a name_array <<< "$names"
+          for name in "${name_array[@]}"; do
+            # Get the TLS certificate name from the ingress
+            tls_cert_name=$(kubectl describe ingress "$name" | awk '/TLS:/ {getline; print $1}')
+
             # Retrieve and decode the certificate
-            certificate_data=$(kubectl get secret "$tls_cert_name" -o=json | jq -r '.data."tls.crt"')
-            if [ -z "$certificate_data" ]; then
-              echo "Failed to retrieve certificate for ingress $ingress. Skipping..."
-              continue
-            fi
-      
-            # Decode and parse the certificate
-            actual_cert=$(echo "$certificate_data" | base64 -d)
-            expiry_date=$(echo "$actual_cert" | openssl x509 -noout -enddate | cut -d= -f2)
+            certificate_data=$(kubectl get secrets "$tls_cert_name" -o=json | jq -r '.data."tls.crt"')
+            actual_cert=$(echo "$certificate_data" | base64 -d | awk '/BEGIN CERTIFICATE/,/END CERTIFICATE/ {print; if (/END CERTIFICATE/) exit}')
+
+            # Extract the first domain from the certificate
+            dns=$(echo "$actual_cert" | openssl x509 -text -noout | awk '/DNS:/ {print $1; exit}' | sed -e 's/DNS://' -e 's/,$//' | grep -v localhost)
+
+            # Extract the expiry date and calculate the remaining days
+            validity=$(echo "$actual_cert" | openssl x509 -text -noout | grep -E 'Not After')
+            expiry_date=$(date -d "$(echo "$validity" | sed 's/Not After : //')" +"%s")
+            current_date=$(date +"%s")
+            days_remaining=$(( (expiry_date - current_date) / (60*60*24) ))
             
-            # Calculate days remaining
-            expiry_timestamp=$(date -d "$expiry_date" +"%s")
-            current_timestamp=$(date +"%s")
-            days_remaining=$(( (expiry_timestamp - current_timestamp) / (60*60*24) ))
-      
-            # Extract the domain from the certificate
-            domain_name=$(echo "$actual_cert" | openssl x509 -noout -text | grep -o 'DNS:[^,]*' | sed 's/DNS://')
-      
-            # Check if the certificate is expiring within the threshold
+            # Set the threshold for sending alerts
+            threshold_days=500
+
+            # Check if the certificate expiry is within the threshold
             if [ "$days_remaining" -le "$threshold_days" ]; then
-              echo "Domain_name: $domain_name  Days Remaining: $days_remaining" >> final_message.txt
+              echo "Domain_name: $dns  Days Remaining: $days_remaining" >> final_message.txt
               certificates_to_notify=true
             fi
           done
-      
-          # Notify if any certificates are expiring
+
+          # Check if there are certificates to notify about
           if [ "$certificates_to_notify" = true ]; then
-            echo "Certificates expiring within $threshold_days days:"
-            cat final_message.txt
             echo "certificates_to_notify=true" >> $GITHUB_ENV
+            cat final_message.txt > FINAL_MESSAGE.txt
           else
             echo "No certificates are expiring within $threshold_days days."
           fi
-
-
-      - name: Check SSL certificate expiry for cf.webhook.venu.bank
-        run: |
-          # Define domain and threshold
-          domain_name=$(echo | openssl s_client -connect ${{ env.DOMAIN_CF }}:443 -servername ${{ env.DOMAIN_CF }} 2>/dev/null | openssl x509 -noout -text | grep 'DNS:' | head -n 1 | sed 's/.*DNS://;s/,.*//')
-          threshold_days=3000
-      
-          # Fetch the expiry date using openssl
-          expiry_date=$(echo | openssl s_client -connect ${{ env.DOMAIN_CF }}:443 -servername ${{ env.DOMAIN_CF }} 2>/dev/null | openssl x509 -noout -dates | grep 'notAfter' | sed 's/notAfter=//')
-      
-          # Convert the expiry date to a timestamp
-          expiry_timestamp=$(date -d "$expiry_date" +"%s")
-          current_timestamp=$(date +"%s")
-          days_remaining=$(( (expiry_timestamp - current_timestamp) / (60*60*24) ))
-      
-          # Initialize message file and check for expiry
-          if [ "$days_remaining" -le "$threshold_days" ]; then
-            echo "Following are the SSL certificates for cf-webhook which will expire within ${{ env.ENVIRONMENT }} ENV:\n\nDomain_name: $domain_name $days_remaining" >> webhwook_message.txt
-            certificates_to_notify=true
-            echo "certificates_to_notify=true" >> $GITHUB_ENV
-          else
-            echo "No certificates for cf.webhook.venu.bank are expiring within $threshold_days days."
-          fi
-
-
 
       - name: Send Slack Alert if certificates are expiring
         if: ${{ env.certificates_to_notify == 'true' }}
         run: |
           webhook_url="${{ env.SLACK_WEBHOOK_URL }}"
           message_content=$(cat FINAL_MESSAGE.txt)
-          message_content_1=$(cat webhook_message.txt)
-          curl -X POST -H 'Content-type: application/json' --data "{ 'text': 'SSL CERTIFICATE EXPIRY:\n\nFollowing are the INGRESS SSL certificates which will expire within ${{ env.ENVIRONMENT }} ENV:\n\n$message_content'}" "$webhook_url"
-
-
-
-      - name: Send Slack Alert for cf-webhook expiry
-        if: ${{ env.certificates_to_notify == 'true' }}
-        run: |
-          webhook_url="${{ env.SLACK_WEBHOOK_URL }}"
-          message_content=$(cat webhook_message.txt)
-          curl -X POST -H 'Content-type: application/json' --data "{ 'text': '$message_content'}" "$webhook_url"
-
-
+          curl -X POST -H 'Content-type: application/json' --data "{ 'text': 'SSL CERTIFICATE EXPIRY:\n\n$message_content'}" "$webhook_url"
 
       - name: Send alert to Slack on job failure
         if: ${{ failure() }}
