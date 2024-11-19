@@ -66,6 +66,35 @@ jobs:
             gcloud container clusters get-credentials "${CLUSTER_NAME}" --zone "${CLUSTER_ZONE}"
           done
 
+
+
+      - name: Check SSL certificate expiry for cf.webhook.venu.bank
+        run: |
+          # Define domain and threshold
+          domain_name=$(echo | openssl s_client -connect ${{ env.DOMAIN_CF }}:443 -servername ${{ env.DOMAIN_CF }} 2>/dev/null | openssl x509 -noout -text | grep 'DNS:' | head -n 1 | sed 's/.*DNS://;s/,.*//')
+          threshold_days=3000
+      
+          # Fetch the expiry date using openssl
+          expiry_date=$(echo | openssl s_client -connect ${{ env.DOMAIN_CF }}:443 -servername ${{ env.DOMAIN_CF }} 2>/dev/null | openssl x509 -noout -dates | grep 'notAfter' | sed 's/notAfter=//')
+      
+          # Convert the expiry date to a timestamp
+          expiry_timestamp=$(date -d "$expiry_date" +"%s")
+          current_timestamp=$(date +"%s")
+          days_remaining=$(( (expiry_timestamp - current_timestamp) / (60*60*24) ))
+      
+          # Initialize message file and check for expiry
+          if [ "$days_remaining" -le "$threshold_days" ]; then
+            echo "Following are the SSL certificates for cf-webhook which will expire within ${{ env.ENVIRONMENT }} ENV:\n\nDomain_name: $domain_name $days_remaining" >> webhook_message.txt
+            certificates_to_notify=true
+            echo "certificates_to_notify=true" >> $GITHUB_ENV
+          else
+            echo "No certificates for cf.webhook.venu.bank are expiring within $threshold_days days."
+          fi
+
+
+
+
+
       - name: Check SSL certificate expiry
         run: |
           # Get the list of ingress names, separated by commas
