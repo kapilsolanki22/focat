@@ -94,7 +94,7 @@ jobs:
             days_remaining=$(( (expiry_date - current_date) / (60*60*24) ))
             
             # Set the threshold for sending alerts
-            threshold_days=500
+            threshold_days=30
 
             # Check if the certificate expiry is within the threshold
             if [ "$days_remaining" -le "$threshold_days" ]; then
