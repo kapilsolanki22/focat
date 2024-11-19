@@ -129,7 +129,7 @@ jobs:
 
             # Check if the certificate expiry is within the threshold
             if [ "$days_remaining" -le "$threshold_days" ]; then
-              echo "Following are the INGRESS SSL certificates which will expire within ${{ env.ENVIRONMENT }} ENV:\nDomain_name: $dns  Days Remaining: $days_remaining" >> final_message.txt
+              echo "Following are the INGRESS SSL certificates which will expire within ${{ env.ENVIRONMENT }} ENV:\nDomain_name: $dns  Days Remaining: $days_remaining" > final_message.txt
               certificates_to_notify=true
             fi
           done
