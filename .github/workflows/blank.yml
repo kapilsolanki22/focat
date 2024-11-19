@@ -147,6 +147,17 @@ jobs:
           message_content=$(cat FINAL_MESSAGE.txt)
           curl -X POST -H 'Content-type: application/json' --data "{ 'text': 'SSL CERTIFICATE EXPIRY:\n\n$message_content'}" "$webhook_url"
 
+
+
+      - name: Send Slack Alert for cf-webhook expiry
+        if: ${{ env.certificates_to_notify == 'true' }}
+        run: |
+          webhook_url="${{ env.SLACK_WEBHOOK_URL }}"
+          message_content=$(cat webhook_message.txt)
+          curl -X POST -H 'Content-type: application/json' --data "{ 'text': '$message_content'}" "$webhook_url"
+
+
+
       - name: Send alert to Slack on job failure
         if: ${{ failure() }}
         run: |
