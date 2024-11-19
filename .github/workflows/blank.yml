@@ -142,7 +142,7 @@ jobs:
 
           # Check if there are certificates to notify about
           if [ "$certificates_to_notify" = true ]; then
-            echo "Following are the INGRESS SSL certificates which will expire within ${{ env.ENVIRONMENT }} ENV:\ncertificates_to_notify=true" >> $GITHUB_ENV
+            echo "\ncertificates_to_notify=true" >> $GITHUB_ENV
             cat final_message.txt > FINAL_MESSAGE.txt
           else
             echo "No certificates are expiring within $threshold_days days."
