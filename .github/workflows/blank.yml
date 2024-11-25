@@ -158,31 +158,31 @@ jobs:
 
 
 
-    - name: Send Slack Notification on Failure
-      if: failure()
-      uses: 8398a7/action-slack@v3
-      with:
-        status: failure
-        fields: custom
-        author_name: "SSL_CERT_EXPIRY_SCRIPT_FAILED"
-        custom_payload: |
-          {
-            "blocks": [
-              {
-                "type": "section",
-                "text": {
-                  "type": "mrkdwn",
-                  "text": "*SSL_CERT_EXPIRY_SCRIPT_FAILED*"
+      - name: Send Slack Notification on Failure
+        if: failure()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: failure
+          fields: custom
+          author_name: "SSL_CERT_EXPIRY_SCRIPT_FAILED"
+          custom_payload: |
+            {
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*SSL_CERT_EXPIRY_SCRIPT_FAILED*"
+                  }
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "Please investigate the issue."
+                  }
                 }
-              },
-              {
-                "type": "section",
-                "text": {
-                  "type": "mrkdwn",
-                  "text": "Please investigate the issue."
-                }
-              }
-            ]
-          }
-      env:
-        SLACK_WEBHOOK_URL: ${{ secrets[format('SLACK_WEBHOOK_URL_{0}', matrix.environment)] }}
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets[format('SLACK_WEBHOOK_URL_{0}', matrix.environment)] }}
