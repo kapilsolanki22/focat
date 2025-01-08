@@ -136,7 +136,8 @@ jobs:
 
       - name: Fetch Certificate from Google Secrets Manager (Stage)
         run: |
-          gcloud secrets versions access latest --secret="${{ secrets.GCLOUD_SECRET_NAME_VT_STAGE }}" --project="${{ secrets.GCP_PROJECT_ID_VT_STAGE }}" > /tmp/gcp_certificate_base64.crt
+          
+          gcloud secrets versions access latest --secret="${{ secrets.GCLOUD_SECRET_NAME_VT_STAGE }}" --project="${{ secrets.GCP_PROJECT_ID_VT_STAGE }}" > /tmp/gcp_certificate.crt
           cat /tmp/gcp_certificate_base64.crt | base64 -d > /tmp/gcp_certificate.crt
 
       - name: Check certificate expiry and details (Stage)
