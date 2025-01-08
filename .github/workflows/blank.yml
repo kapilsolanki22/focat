@@ -296,7 +296,7 @@ jobs:
 
 
 
-    fetch-secrets-STAGE:
+  fetch-secrets-STAGE:
       runs-on: ubuntu-latest
       env:
         EXPIRY_THRESHOLD_DAYS: 30  # Set the expiry threshold to 30 days
@@ -401,7 +401,7 @@ jobs:
 
       # --- PROD ENVIRONMENT ---
       
-    fetch-secrets-PROD:
+  fetch-secrets-PROD:
       runs-on: ubuntu-latest
       env:
         EXPIRY_THRESHOLD_DAYS: 30  # Set the expiry threshold to 30 days
