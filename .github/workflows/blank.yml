@@ -118,7 +118,7 @@ jobs:
   fetch-and-check-vt-stage:
     runs-on: ubuntu-latest
     env:
-      EXPIRY_THRESHOLD_DAYS: 10  # Set the expiry threshold to 30 days
+      EXPIRY_THRESHOLD_DAYS: 200  # Set the expiry threshold to 30 days
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
