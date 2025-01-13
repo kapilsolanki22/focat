@@ -105,7 +105,7 @@ jobs:
         
             
             # Set the threshold for sending alerts
-            threshold_days=30
+            threshold_days=500
 
             # Check if the certificate expiry is within the threshold
             if [ "$days_remaining" -le "$threshold_days" ]; then
@@ -178,7 +178,7 @@ jobs:
           THRESHOLD_TIMESTAMP_MICA=$((CURRENT_TIMESTAMP_MICA + THRESHOLD_DAYS*24*60*60))
 
           # set threshold
-          threshold_days=30
+          threshold_days=500
           
           # Calculate days remaining
           DAYS_REMAINING_MICA=$(( (EXPIRY_TIMESTAMP_MICA - CURRENT_TIMESTAMP_MICA) / 86400 ))
