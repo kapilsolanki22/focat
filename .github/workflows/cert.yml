@@ -87,4 +87,38 @@ jobs:
 
       - name: Send alert to Slack
         if: env.EXPIRING == 'true'
-        run: 
+        run: |
+          curl -X POST -H 'Content-type: application/json' \
+          --data '{
+            "text": "*Cert Alert: ${{ matrix.cert_name }}* \n*Cert Name*: '"$CERT_NAME"' \n*DNS Name*: '"$DNS_NAME"' \n*Days Remaining*: '"$DAYS_REMAINING"' \n*End Date*: '"$EXPIRY_DATE"'"
+          }' \
+          ${{ matrix.slack_webhook_url }}
+
+      - name: Slack Notification on Failure
+        if: failure()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: failure
+          fields: custom
+          author_name: "Certificate Check Failed"
+          custom_payload: |
+            {
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Certificate Check Failed for: ${{ matrix.cert_name }}*"
+                  }
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "Please investigate the issue."
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ matrix.slack_webhook_url }}
