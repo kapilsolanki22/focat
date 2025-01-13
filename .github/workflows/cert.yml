@@ -200,7 +200,7 @@ jobs:
           echo "EXPIRY_DATE_MICA=$EXPIRY_DATE" >> $GITHUB_ENV
           
           # Determine expiration status
-          if [ "$EXPIRY_TIMESTAMP" -le "$THRESHOLD_TIMESTAMP" ]; then
+          if [ "$EXPIRY_TIMESTAMP_MICA" -le "$THRESHOLD_TIMESTAMP_MICA" ]; then
             echo "STAGE_EXPIRING=true" >> $GITHUB_ENV
           else
             echo "STAGE_EXPIRING=false" >> $GITHUB_ENV
