@@ -124,7 +124,7 @@ jobs:
             echo "No certificates are expiring within $threshold_days days."
           fi
 
-      - name: Send Slack Alert if certificates are expiring
+      - name: Send Slack Alert if MICA certificates are expiring
         if: ${{ env.certificates_to_notify == 'true' }}
         run: |
           webhook_url="${{ env.SLACK_WEBHOOK_URL }}"
@@ -166,11 +166,11 @@ jobs:
 
 
 
-      - name: Mica Certs (Stage, prod, vt-stage, vt-prod)
+      - name: Mica Certs
         run: |
           gcloud secrets versions access latest --secret="${{ env.GCLOUD_SECRET_NAME }}" --project="${{ env.GCP_PROJECT_ID }}" > /tmp/gcp_certificate_base64.crt
           cat /tmp/gcp_certificate_base64.crt | base64 -d > /tmp/gcp_certificate.crt
-      - name: Check certificate expiry and details (Stage)
+      - name: Check certificate expiry and details
         id: check_expiry_gsm
         run: |
           # Extract expiry date
