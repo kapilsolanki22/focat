@@ -1,0 +1,127 @@
+name: MICA & GRPC Cert Expiry Check
+
+on:
+  workflow_dispatch:  # Allows manual trigger
+  schedule:
+    - cron: "41 5 * * 1,4"  # Runs at the specified time
+
+jobs:
+  fetch-and-check-cert:
+    runs-on: ubuntu-latest
+    env:
+      EXPIRY_THRESHOLD_DAYS: 31  # Set the expiry threshold to 31 days
+    strategy:
+      matrix:
+        environment: 
+          - name: "STAGE"
+            gcp_sa_key: ${{ secrets.GCP_SA_KEY_STAGE }}
+            gcp_project_id: ${{ secrets.GCP_PROJECT_ID_STAGE }}
+            secret_name: ${{ secrets.GCLOUD_SECRET_NAME_STAGE }}
+            slack_webhook_url: ${{ secrets.SLACK_WEBHOOK_URL_STAGE }}
+            cert_name: "Mica Client Cert (Stage)"
+          - name: "VT_STAGE"
+            gcp_sa_key: ${{ secrets.GCP_SA_KEY_VT_STAGE }}
+            gcp_project_id: ${{ secrets.GCP_PROJECT_ID_VT_STAGE }}
+            secret_name: ${{ secrets.GCLOUD_SECRET_NAME_VT_STAGE }}
+            slack_webhook_url: ${{ secrets.SLACK_WEBHOOK_URL_STAGE }}
+            cert_name: "Gateway Venu Bank Cert (Stage)"
+          - name: "VT_PROD"
+            gcp_sa_key: ${{ secrets.GCP_SA_KEY_VT_PROD }}
+            gcp_project_id: ${{ secrets.GCP_PROJECT_ID_VT_PROD }}
+            secret_name: ${{ secrets.GCLOUD_SECRET_NAME_VT_PROD }}
+            slack_webhook_url: ${{ secrets.SLACK_WEBHOOK_URL_STAGE }}
+            cert_name: "Gateway Venu Bank Cert (Prod)"
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Google Auth
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ matrix.environment.gcp_sa_key }}
+
+      - name: Setting up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ matrix.environment.gcp_project_id }}
+
+      - name: Fetch Certificate from Google Secrets Manager
+        run: |
+          gcloud secrets versions access latest --secret="${{ matrix.environment.secret_name }}" --project="${{ matrix.environment.gcp_project_id }}" > /tmp/gcp_certificate_base64.crt
+          cat /tmp/gcp_certificate_base64.crt | base64 -d > /tmp/gcp_certificate.crt
+
+      - name: Check certificate expiry and details
+        id: check_expiry
+        run: |
+          # Extract expiry date
+          EXPIRY_DATE=$(openssl x509 -in /tmp/gcp_certificate.crt -noout -enddate | cut -d= -f2)
+          EXPIRY_TIMESTAMP=$(date -d "$EXPIRY_DATE" +%s)
+          CURRENT_TIMESTAMP=$(date +%s)
+          THRESHOLD_TIMESTAMP=$(($CURRENT_TIMESTAMP + ${EXPIRY_THRESHOLD_DAYS}*24*60*60))
+          
+          # Calculate days remaining
+          DAYS_REMAINING=$(( (EXPIRY_TIMESTAMP - CURRENT_TIMESTAMP) / 86400 ))
+          
+          # Extract DNS name (from SAN if available, otherwise from CN)
+          DNS_NAME=$(openssl x509 -in /tmp/gcp_certificate.crt -noout -ext subjectAltName | grep -o 'DNS:[^,]*' | cut -d: -f2 | head -n1)
+          if [ -z "$DNS_NAME" ]; then
+            DNS_NAME=$(openssl x509 -in /tmp/gcp_certificate.crt -noout -subject | sed -n '/CN/s/^.*CN=//p')
+          fi
+          
+          echo "Expiry Date: $EXPIRY_DATE" && \
+          echo "Expiry Timestamp: $EXPIRY_TIMESTAMP" && \
+          echo "Current Timestamp: $CURRENT_TIMESTAMP" && \
+          echo "Threshold Timestamp: $THRESHOLD_TIMESTAMP" && \
+          echo "Days Remaining: $DAYS_REMAINING"
+          
+          # Set environment variables for Slack message
+          echo "CERT_NAME=${{ matrix.environment.cert_name }}" >> $GITHUB_ENV
+          echo "DNS_NAME=$DNS_NAME" >> $GITHUB_ENV
+          echo "DAYS_REMAINING=$DAYS_REMAINING" >> $GITHUB_ENV
+          echo "EXPIRY_DATE=$EXPIRY_DATE" >> $GITHUB_ENV
+          
+          # Determine expiration status
+          if [ "$EXPIRY_TIMESTAMP" -le "$THRESHOLD_TIMESTAMP" ]; then
+            echo "EXPIRING=true" >> $GITHUB_ENV
+          else
+            echo "EXPIRING=false" >> $GITHUB_ENV
+          fi
+
+      - name: Send alert to Slack
+        if: env.EXPIRING == 'true'
+        run: |
+          curl -X POST -H 'Content-type: application/json' \
+          --data '{
+            "text": "*Cert Alert: ${{ matrix.environment.name }}* \n*Cert Name*: '"$CERT_NAME"' \n*DNS Name*: '"$DNS_NAME"' \n*Days Remaining*: '"$DAYS_REMAINING"' \n*End Date*: '"$EXPIRY_DATE"'"
+          }' \
+          ${{ matrix.environment.slack_webhook_url }}
+
+      - name: Slack Notification on Failure
+        if: failure()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: failure
+          fields: custom
+          author_name: "Certificate Check Failed"
+          custom_payload: |
+            {
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Certificate Check Failed for: ${{ matrix.environment.name }}*"
+                  }
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "Please investigate the issue."
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ matrix.environment.slack_webhook_url }}
