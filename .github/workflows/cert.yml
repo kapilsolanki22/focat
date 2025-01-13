@@ -177,6 +177,8 @@ jobs:
           CURRENT_TIMESTAMP_MICA=$(date +%s)
           THRESHOLD_TIMESTAMP_MICA=$((CURRENT_TIMESTAMP_MICA + THRESHOLD_DAYS*24*60*60))
 
+          # set threshold
+          threshold_days=30
           
           # Calculate days remaining
           DAYS_REMAINING_MICA=$(( (EXPIRY_TIMESTAMP_MICA - CURRENT_TIMESTAMP_MICA) / 86400 ))
