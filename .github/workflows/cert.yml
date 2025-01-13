@@ -12,7 +12,7 @@ jobs:
 
     strategy:
       matrix:
-        env: [stage, prod]  # Added test and dev
+        env: [stage, prod, vt-stage, vt-prod]  # Added test and dev
 
     steps:
       - name: Checkout repository
@@ -31,10 +31,12 @@ jobs:
             echo "GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID_STAGE }}" >> $GITHUB_ENV
             echo "DOMAIN_CF=${{ secrets.DOMAIN_CF_STAGE }}" >> $GITHUB_ENV
             echo "SLACK_WEBHOOK_URL=${{ secrets.SLACK_WEBHOOK_URL_STAGE }}" >> $GITHUB_ENV
+            echo "GCLOUD_SECRET_NAME=${{ secrets.GCLOUD_SECRET_NAME_STAGE }}" >> $GITHUB_ENV
           elif [ "${{ matrix.env }}" == "prod" ]; then
             echo "GCP_SERVICE_ACCOUNT_KEY=$(echo -n '${{ secrets.GCP_SA_KEY_PROD }}' | base64 -w0)" >> $GITHUB_ENV
             echo "GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID_PROD }}" >> $GITHUB_ENV
             echo "DOMAIN_CF=${{ secrets.DOMAIN_CF_PROD }}" >> $GITHUB_ENV
+            echo "GCLOUD_SECRET_NAME=${{ secrets.GCLOUD_SECRET_NAME_PROD }}" >> $GITHUB_ENV            
             echo "SLACK_WEBHOOK_URL=${{ secrets.SLACK_WEBHOOK_URL_PROD }}" >> $GITHUB_ENV
           fi
           echo "ENVIRONMENT=${{ matrix.env }}" >> $GITHUB_ENV
