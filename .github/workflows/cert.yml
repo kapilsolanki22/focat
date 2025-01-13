@@ -196,11 +196,10 @@ jobs:
           # Set environment variables for Slack message
           echo "CERT_NAME_MICA=Mica Client Cert (Stage)" >> $GITHUB_ENV
           echo "DNS_NAME_MICA=$DNS_NAME_STAGE" >> $GITHUB_ENV
-          echo "DAYS_REMAINING_MICA=$DAYS_REMAINING_MICA" >> $GITHUB_ENV
           echo "EXPIRY_DATE_MICA=$EXPIRY_DATE" >> $GITHUB_ENV
           
           # Determine expiration status
-          if [ "${{ env.DAYS_REMAINING_MICA }}" -le "$THRESHOLD_DAYS" ]; then
+          if [ "$DAYS_REMAINING_MICA" -le "$THRESHOLD_DAYS" ]; then
             echo "STAGE_EXPIRING=true" >> $GITHUB_ENV
           else
             echo "STAGE_EXPIRING=false" >> $GITHUB_ENV
