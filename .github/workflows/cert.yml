@@ -221,15 +221,14 @@ jobs:
 
 #########################################            -- slack_alert_setup --            #########################################
 
-      - name: Send alert to Slack (Stage)
+      - name: Send alert to Slack (Mica)
         if: ${{ env.STAGE_EXPIRING == 'true' }}
         run: |
           curl -X POST -H 'Content-type: application/json' \
           --data '{
             "text": "*MICA GRPC STAGE* \n*DNS Name*: '"${{ env.DNS_NAME_MICA }}"' \n*Days Remaining*: '"${{ env.DNS_NAME_MICA }}"' \n*End Date*: '"${{ env.EXPIRY_DATE_MICA }}"'"
           }' \
-          ${{ secrets.SLACK_WEBHOOK_URL_STAGE }}
-
+          ${{ env.SLACK_WEBHOOK_URL }}
           
       - name: Send Slack Alert for cf-webhook expiry
         if: ${{ env.certificates_to_notify == 'true' }}
