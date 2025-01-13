@@ -95,8 +95,13 @@ jobs:
             validity=$(echo "$actual_cert" | openssl x509 -text -noout | grep -E 'Not After')
             expiry_date=$(date -d "$(echo "$validity" | sed 's/Not After : //')" +"%s")
             current_date=$(date +"%s")
-            days_remaining=$(( (expiry_date - current_date) / (60*60*24) 
+            days_remaining=$(( (expiry_date - current_date) / (60*60*24) ))
 
+
+            echo "Expiry Date: $EXPIRY_DATE" && \
+            echo "Expiry Timestamp: $VALIDITY" && \
+            echo "Current Timestamp: $CURRENT_DATE" && \
+            echo "Days Remaining: $DAYS_REMAINING"
         
             
             # Set the threshold for sending alerts
