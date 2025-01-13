@@ -12,25 +12,20 @@ jobs:
       EXPIRY_THRESHOLD_DAYS: 31  # Set the expiry threshold to 31 days
     strategy:
       matrix:
-        environment: 
-          - name: "STAGE"
-            gcp_sa_key: ${{ secrets.GCP_SA_KEY_STAGE }}
-            gcp_project_id: ${{ secrets.GCP_PROJECT_ID_STAGE }}
-            secret_name: ${{ secrets.GCLOUD_SECRET_NAME_STAGE }}
-            slack_webhook_url: ${{ secrets.SLACK_WEBHOOK_URL_STAGE }}
-            cert_name: "Mica Client Cert (Stage)"
-          - name: "VT_STAGE"
-            gcp_sa_key: ${{ secrets.GCP_SA_KEY_VT_STAGE }}
-            gcp_project_id: ${{ secrets.GCP_PROJECT_ID_VT_STAGE }}
-            secret_name: ${{ secrets.GCLOUD_SECRET_NAME_VT_STAGE }}
-            slack_webhook_url: ${{ secrets.SLACK_WEBHOOK_URL_STAGE }}
-            cert_name: "Gateway Venu Bank Cert (Stage)"
-          - name: "VT_PROD"
-            gcp_sa_key: ${{ secrets.GCP_SA_KEY_VT_PROD }}
-            gcp_project_id: ${{ secrets.GCP_PROJECT_ID_VT_PROD }}
-            secret_name: ${{ secrets.GCLOUD_SECRET_NAME_VT_PROD }}
-            slack_webhook_url: ${{ secrets.SLACK_WEBHOOK_URL_STAGE }}
-            cert_name: "Gateway Venu Bank Cert (Prod)"
+           env: 
+             gcp_sa_key: ${{ secrets.GCP_SA_KEY_STAGE }}
+             gcp_project_id: ${{ secrets.GCP_PROJECT_ID_STAGE }}
+             secret_name: ${{ secrets.GCLOUD_SECRET_NAME_STAGE }}
+             slack_webhook_url: ${{ secrets.SLACK_WEBHOOK_URL_STAGE }}
+             cert_name: "Mica Client Cert (Stage)"
+    
+             secret_name_vt_stage: ${{ secrets.GCLOUD_SECRET_NAME_VT_STAGE }}
+             slack_webhook_url_vt_stage: ${{ secrets.SLACK_WEBHOOK_URL_STAGE }}
+             cert_name_vt_stage: "Gateway Venu Bank Cert (Stage)"
+    
+             secret_name_vt_prod: ${{ secrets.GCLOUD_SECRET_NAME_VT_PROD }}
+             slack_webhook_url_vt_prod: ${{ secrets.SLACK_WEBHOOK_URL_STAGE }}
+             cert_name_vt_prod: "Gateway Venu Bank Cert (Prod)"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
