@@ -12,20 +12,22 @@ jobs:
       EXPIRY_THRESHOLD_DAYS: 31  # Set the expiry threshold to 31 days
     strategy:
       matrix:
-           env: 
-             gcp_sa_key: ${{ secrets.GCP_SA_KEY_STAGE }}
-             gcp_project_id: ${{ secrets.GCP_PROJECT_ID_STAGE }}
-             secret_name: ${{ secrets.GCLOUD_SECRET_NAME_STAGE }}
-             slack_webhook_url: ${{ secrets.SLACK_WEBHOOK_URL_STAGE }}
-             cert_name: "Mica Client Cert (Stage)"
-    
-             secret_name_vt_stage: ${{ secrets.GCLOUD_SECRET_NAME_VT_STAGE }}
-             slack_webhook_url_vt_stage: ${{ secrets.SLACK_WEBHOOK_URL_STAGE }}
-             cert_name_vt_stage: "Gateway Venu Bank Cert (Stage)"
-    
-             secret_name_vt_prod: ${{ secrets.GCLOUD_SECRET_NAME_VT_PROD }}
-             slack_webhook_url_vt_prod: ${{ secrets.SLACK_WEBHOOK_URL_STAGE }}
-             cert_name_vt_prod: "Gateway Venu Bank Cert (Prod)"
+        include:
+          - gcp_sa_key: ${{ secrets.GCP_SA_KEY_STAGE }}
+            gcp_project_id: ${{ secrets.GCP_PROJECT_ID_STAGE }}
+            secret_name: ${{ secrets.GCLOUD_SECRET_NAME_STAGE }}
+            slack_webhook_url: ${{ secrets.SLACK_WEBHOOK_URL_STAGE }}
+            cert_name: "Mica Client Cert (Stage)"
+          - gcp_sa_key: ${{ secrets.GCP_SA_KEY_STAGE }}
+            gcp_project_id: ${{ secrets.GCP_PROJECT_ID_STAGE }}
+            secret_name: ${{ secrets.GCLOUD_SECRET_NAME_VT_STAGE }}
+            slack_webhook_url: ${{ secrets.SLACK_WEBHOOK_URL_STAGE }}
+            cert_name: "Gateway Venu Bank Cert (Stage)"
+          - gcp_sa_key: ${{ secrets.GCP_SA_KEY_PROD }}
+            gcp_project_id: ${{ secrets.GCP_PROJECT_ID_PROD }}
+            secret_name: ${{ secrets.GCLOUD_SECRET_NAME_VT_PROD }}
+            slack_webhook_url: ${{ secrets.SLACK_WEBHOOK_URL_STAGE }}
+            cert_name: "Gateway Venu Bank Cert (Prod)"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -34,16 +36,16 @@ jobs:
         id: auth
         uses: google-github-actions/auth@v2
         with:
-          credentials_json: ${{ matrix.environment.gcp_sa_key }}
+          credentials_json: ${{ matrix.gcp_sa_key }}
 
       - name: Setting up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
         with:
-          project_id: ${{ matrix.environment.gcp_project_id }}
+          project_id: ${{ matrix.gcp_project_id }}
 
       - name: Fetch Certificate from Google Secrets Manager
         run: |
-          gcloud secrets versions access latest --secret="${{ matrix.environment.secret_name }}" --project="${{ matrix.environment.gcp_project_id }}" > /tmp/gcp_certificate_base64.crt
+          gcloud secrets versions access latest --secret="${{ matrix.secret_name }}" --project="${{ matrix.gcp_project_id }}" > /tmp/gcp_certificate_base64.crt
           cat /tmp/gcp_certificate_base64.crt | base64 -d > /tmp/gcp_certificate.crt
 
       - name: Check certificate expiry and details
@@ -71,7 +73,7 @@ jobs:
           echo "Days Remaining: $DAYS_REMAINING"
           
           # Set environment variables for Slack message
-          echo "CERT_NAME=${{ matrix.environment.cert_name }}" >> $GITHUB_ENV
+          echo "CERT_NAME=${{ matrix.cert_name }}" >> $GITHUB_ENV
           echo "DNS_NAME=$DNS_NAME" >> $GITHUB_ENV
           echo "DAYS_REMAINING=$DAYS_REMAINING" >> $GITHUB_ENV
           echo "EXPIRY_DATE=$EXPIRY_DATE" >> $GITHUB_ENV
@@ -85,38 +87,4 @@ jobs:
 
       - name: Send alert to Slack
         if: env.EXPIRING == 'true'
-        run: |
-          curl -X POST -H 'Content-type: application/json' \
-          --data '{
-            "text": "*Cert Alert: ${{ matrix.environment.name }}* \n*Cert Name*: '"$CERT_NAME"' \n*DNS Name*: '"$DNS_NAME"' \n*Days Remaining*: '"$DAYS_REMAINING"' \n*End Date*: '"$EXPIRY_DATE"'"
-          }' \
-          ${{ matrix.environment.slack_webhook_url }}
-
-      - name: Slack Notification on Failure
-        if: failure()
-        uses: 8398a7/action-slack@v3
-        with:
-          status: failure
-          fields: custom
-          author_name: "Certificate Check Failed"
-          custom_payload: |
-            {
-              "blocks": [
-                {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "*Certificate Check Failed for: ${{ matrix.environment.name }}*"
-                  }
-                },
-                {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "Please investigate the issue."
-                  }
-                }
-              ]
-            }
-        env:
-          SLACK_WEBHOOK_URL: ${{ matrix.environment.slack_webhook_url }}
+        run: 
