@@ -173,12 +173,12 @@ jobs:
         run: |
           # Extract expiry date
           EXPIRY_DATE_MICA=$(openssl x509 -in /tmp/gcp_certificate.crt -noout -enddate | cut -d= -f2)
-          EXPIRY_TIMESTAMP_MICA=$(date -d "$EXPIRY_DATE" +%s)
+          EXPIRY_TIMESTAMP_MICA=$(date -d "$EXPIRY_DATE_MICA" +%s)
           CURRENT_TIMESTAMP_MICA=$(date +%s)
-          THRESHOLD_TIMESTAMP_MICA=$(($CURRENT_TIMESTAMP + ${EXPIRY_THRESHOLD_DAYS}*24*60*60))
+          THRESHOLD_TIMESTAMP_MICA=$(($CURRENT_TIMESTAMP_MICA + ${THRESHOLD_DAYS}*24*60*60))
           
           # Calculate days remaining
-          DAYS_REMAINING_MICA=$(( (EXPIRY_TIMESTAMP - CURRENT_TIMESTAMP) / 86400 ))
+          DAYS_REMAINING_MICA=$(( (EXPIRY_TIMESTAMP_MICA - CURRENT_TIMESTAMP_MICA) / 86400 ))
           
           # Extract DNS name (from SAN if available, otherwise from CN)
           DNS_NAME_STAGE=$(openssl x509 -in /tmp/gcp_certificate.crt -noout -ext subjectAltName | grep -o 'DNS:[^,]*' | cut -d: -f2 | head -n1)
