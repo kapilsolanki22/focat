@@ -168,8 +168,9 @@ jobs:
         run: |
           webhook_url="${{ env.SLACK_WEBHOOK_URL }}"
           message_content=$(cat webhook_message.txt)
-          message_content=$(echo "$message_content" | sed 's/"/\\"/g' | tr '\n' ' ')
-          curl -X POST -H 'Content-type: application/json' --data "{ 'text': '$message_content'}" "$webhook_url"
+          payload="{\"text\": \"$message_content\"}"
+          # Send the webhook
+          curl -X POST -H 'Content-type: application/json' --data "$payload" "$webhook_url"
 
 
 
