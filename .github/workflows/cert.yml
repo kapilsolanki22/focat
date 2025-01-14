@@ -155,7 +155,7 @@ jobs:
       
           # Initialize message file and check for expiry
           if [ "$days_remaining_cf" -le "$threshold_days_cf" ]; then
-            echo "Following are the SSL certificates for cf-webhook which will expire within ${{ env.ENVIRONMENT }} ENV:\n\nDomain_name: $domain_name_cf Days Remaining: $days_remaining_cf" >> webhook_message.txt
+            echo "Following are the SSL certificates for cf-webhook which will expire within ${{ env.ENVIRONMENT }} ENV:\n\nDomain_name: $domain_name_cf, \mDays Remaining: $days_remaining_cf" >> webhook_message.txt
             certificates_to_notify=true
             echo "certificates_to_notify=true" >> $GITHUB_ENV
           else
