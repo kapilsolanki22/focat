@@ -134,32 +134,32 @@ jobs:
       - name: Check SSL certificate expiry for cf.webhook.venu.bank
         run: |
           # Define domain and threshold
-          domain_name=$(echo | openssl s_client -connect ${{ env.DOMAIN_CF }}:443 -servername ${{ env.DOMAIN_CF }} 2>/dev/null | openssl x509 -noout -text | grep 'DNS:' | head -n 1 | sed 's/.*DNS://;s/,.*//')
-          threshold_days=30
+          domain_name_cf=$(echo | openssl s_client -connect ${{ env.DOMAIN_CF }}:443 -servername ${{ env.DOMAIN_CF }} 2>/dev/null | openssl x509 -noout -text | grep 'DNS:' | head -n 1 | sed 's/.*DNS://;s/,.*//')
+          threshold_days_cf=400
       
           # Fetch the expiry date using openssl
-          expiry_date=$(echo | openssl s_client -connect ${{ env.DOMAIN_CF }}:443 -servername ${{ env.DOMAIN_CF }} 2>/dev/null | openssl x509 -noout -dates | grep 'notAfter' | sed 's/notAfter=//')
+          expiry_date_cf=$(echo | openssl s_client -connect ${{ env.DOMAIN_CF }}:443 -servername ${{ env.DOMAIN_CF }} 2>/dev/null | openssl x509 -noout -dates | grep 'notAfter' | sed 's/notAfter=//')
       
           # Convert the expiry date to a timestamp
-          expiry_timestamp=$(date -d "$expiry_date" +"%s")
-          current_timestamp=$(date +"%s")
-          days_remaining=$(( (expiry_timestamp - current_timestamp) / (60*60*24) ))
+          expiry_timestamp_cf=$(date -d "$expiry_date" +"%s")
+          current_timestamp_cf=$(date +"%s")
+          days_remaining_cf=$(( (expiry_timestamp_cf - current_timestamp_cf) / (60*60*24) ))
 
 
-          echo "Expiry Date: $EXPIRY_DATE" && \
-          echo "Expiry Timestamp: $EXPIRY_TIMESTAMP" && \
-          echo "Current Timestamp: $CURRENT_TIMESTAMP" && \
-          echo "Days Remaining: $DAYS_REMAINING"
+          echo "Expiry Date: $EXPIRY_DATE_Cf" && \
+          echo "Expiry Timestamp: $EXPIRY_TIMESTAMP_Cf" && \
+          echo "Current Timestamp: $CURRENT_TIMESTAMP_Cf" && \
+          echo "Days Remaining: $DAYS_REMAINING_Cf"
 
         
       
           # Initialize message file and check for expiry
-          if [ "$days_remaining" -le "$threshold_days" ]; then
-            echo "Following are the SSL certificates for cf-webhook which will expire within ${{ env.ENVIRONMENT }} ENV:\n\nDomain_name: $domain_name Days Remaining: $days_remaining" >> webhook_message.txt
+          if [ "$days_remaining_cf" -le "$threshold_days_cf" ]; then
+            echo "Following are the SSL certificates for cf-webhook which will expire within ${{ env.ENVIRONMENT }} ENV:\n\nDomain_name: $domain_name_cf Days Remaining: $days_remaining_cf" >> webhook_message.txt
             certificates_to_notify=true
             echo "certificates_to_notify=true" >> $GITHUB_ENV
           else
-            echo "No certificates for cf.webhook.venu.bank are expiring within $threshold_days days."
+            echo "No certificates for cf.webhook.venu.bank are expiring within $threshold_days_cf days."
           fi
 
 
@@ -198,10 +198,11 @@ jobs:
           # Set environment variables for Slack message
           echo "CERT_NAME_MICA=Mica Client Cert (Stage)" >> $GITHUB_ENV
           echo "DNS_NAME_MICA=$DNS_NAME_STAGE" >> $GITHUB_ENV
+          echo "DAYS_REMAINING_MICA=$DAYS_REMAINING_MICA" >> $GITHUB_ENV
           echo "EXPIRY_DATE_MICA=$EXPIRY_DATE" >> $GITHUB_ENV
           
           # Determine expiration status
-          if [ "$DAYS_REMAINING_MICA" -le "$THRESHOLD_DAYS_MICA" ]; then
+          if [ "${{ env.days_remaining_mica }}" -le "$threshold_days_mica" ]; then
             echo "MICA_EXPIRING=true" >> $GITHUB_ENV
           else
             echo "MICA_EXPIRING=false" >> $GITHUB_ENV
@@ -227,7 +228,7 @@ jobs:
         run: |
           curl -X POST -H 'Content-type: application/json' \
           --data '{
-            "text": "*MICA GRPC STAGE* \n*DNS Name*: '"${{ env.DNS_NAME_MICA }}"' \n*Days Remaining*: '"${{ env.DNS_NAME_MICA }}"' \n*End Date*: '"${{ env.EXPIRY_DATE_MICA }}"'"
+            "text": "*MICA GRPC STAGE* \n*DNS Name*: '"${{ env.DNS_NAME_MICA }}"' \n*Days Remaining*: '"${{ env.DAYS_REMAINING_MICA }}"' \n*End Date*: '"${{ env.EXPIRY_DATE_MICA }}"'"
           }' \
           ${{ env.SLACK_WEBHOOK_URL }}
           
@@ -235,8 +236,8 @@ jobs:
         if: ${{ env.certificates_to_notify == 'true' }}
         run: |
           webhook_url="${{ env.SLACK_WEBHOOK_URL }}"
-          message_content=$(cat webhook_message.txt)
-          curl -X POST -H 'Content-type: application/json' --data "{ 'text': '$message_content'}" "$webhook_url"
+          messages_content=$(cat webhook_message.txt)
+          curl -X POST -H 'Content-type: application/json' --data "{ 'text': '$messages_content'}" "$webhook_url"
 
 
 
