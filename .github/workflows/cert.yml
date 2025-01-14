@@ -245,7 +245,7 @@ jobs:
 #########################################            -- slack_alert_setup --            #########################################
 
       - name: Send alert to Slack (Mica)
-        if: ${{ env.MICA_EXPIRING == 'true' }}
+        if: ${{ env.mica_expiring == 'true' }}
         run: |
           curl -X POST -H 'Content-type: application/json' \
           --data '{
