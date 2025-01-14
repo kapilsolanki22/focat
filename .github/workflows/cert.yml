@@ -98,10 +98,10 @@ jobs:
             days_remaining=$(( (expiry_date - current_date) / (60*60*24) ))
 
 
-            echo "Expiry Date: $EXPIRY_DATE" && \
-            echo "Expiry Timestamp: $VALIDITY" && \
-            echo "Current Timestamp: $CURRENT_DATE" && \
-            echo "Days Remaining: $DAYS_REMAINING"
+            # echo "Expiry Date: $EXPIRY_DATE" && \
+            # echo "Expiry Timestamp: $VALIDITY" && \
+            # echo "Current Timestamp: $CURRENT_DATE" && \
+            # echo "Days Remaining: $DAYS_REMAINING"
         
             
             # Set the threshold for sending alerts
@@ -146,10 +146,10 @@ jobs:
           days_remaining_cf=$(( (expiry_timestamp_cf - current_timestamp_cf) / (60*60*24) ))
 
 
-          echo "Expiry Date: $EXPIRY_DATE_Cf" && \
-          echo "Expiry Timestamp: $EXPIRY_TIMESTAMP_Cf" && \
-          echo "Current Timestamp: $CURRENT_TIMESTAMP_Cf" && \
-          echo "Days Remaining: $DAYS_REMAINING_Cf"
+          # echo "Expiry Date: $EXPIRY_DATE_Cf" && \
+          # echo "Expiry Timestamp: $EXPIRY_TIMESTAMP_Cf" && \
+          # echo "Current Timestamp: $CURRENT_TIMESTAMP_Cf" && \
+          # echo "Days Remaining: $DAYS_REMAINING_Cf"
 
         
       
@@ -166,11 +166,9 @@ jobs:
       - name: Send Slack Alert for cf-webhook expiry
         if: ${{ env.certificates_to_notify == 'true' }}
         run: |
-          webhook_url="${{ env.SLACK_WEBHOOK_URL }}"
+          webhook_url="https://hooks.slack.com/services/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"
           message_content=$(cat webhook_message.txt)
-          payload="{\"text\": \"$message_content\"}"
-          # Send the webhook
-          curl -X POST -H 'Content-type: application/json' --data "$payload" "$webhook_url"
+          curl -X POST -H 'Content-type: application/text' --data "{ 'text': '$message_content'}" "$webhook_url"
 
 
 
@@ -245,7 +243,7 @@ jobs:
 #########################################            -- slack_alert_setup --            #########################################
 
       - name: Send alert to Slack (Mica)
-        if: ${{ env.mica_expiring == 'true' }}
+        if: ${{ env.MICA_EXPIRING == 'true' }}
         run: |
           curl -X POST -H 'Content-type: application/json' \
           --data '{
