@@ -167,8 +167,9 @@ jobs:
         if: ${{ env.certificates_to_notify == 'true' }}
         run: |
           webhook_url="${{ env.SLACK_WEBHOOK_URL }}"
-          messages_content=$(cat webhook_message.txt)
-          curl -X POST -H 'Content-type: application/json' --data "{ 'text': '$messages_content'}" "$webhook_url"
+          message_content=$(cat webhook_message.txt)
+          curl -X POST -H 'Content-type: application/json' --data "{ 'text': '$message_content'}" "$webhook_url"
+
 
 
 
