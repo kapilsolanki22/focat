@@ -178,7 +178,7 @@ jobs:
           THRESHOLD_TIMESTAMP_MICA=$((CURRENT_TIMESTAMP_MICA + THRESHOLD_DAYS*24*60*60))
 
           # set threshold
-          threshold_days=500
+          threshold_days_mica=500
           
           # Calculate days remaining
           DAYS_REMAINING_MICA=$(( (EXPIRY_TIMESTAMP_MICA - CURRENT_TIMESTAMP_MICA) / 86400 ))
@@ -201,7 +201,7 @@ jobs:
           echo "EXPIRY_DATE_MICA=$EXPIRY_DATE" >> $GITHUB_ENV
           
           # Determine expiration status
-          if [ "$DAYS_REMAINING_MICA" -le "$THRESHOLD_DAYS" ]; then
+          if [ "$DAYS_REMAINING_MICA" -le "$THRESHOLD_DAYS_MICA" ]; then
             echo "STAGE_EXPIRING=true" >> $GITHUB_ENV
           else
             echo "STAGE_EXPIRING=false" >> $GITHUB_ENV
