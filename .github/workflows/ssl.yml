@@ -150,7 +150,7 @@ jobs:
           if [ "$days_remaining" -le "$threshold_days" ]; then
             echo "Following are the SSL certificates for cf-webhook which will expire within ${{ env.ENVIRONMENT }} ENV:\n\nDomain_name: $domain_name Days Remaining: $days_remaining" >> webhook_message.txt
             certificates_to_notify_cf=true
-            echo "certificates_to_notify=true" >> $GITHUB_ENV
+            echo "certificates_to_notify_cf=true" >> $GITHUB_ENV
           else
             echo "No certificates for cf.webhook.venu.bank are expiring within $threshold_days days."
           fi
@@ -226,11 +226,12 @@ jobs:
       - name: Send alert to Slack (Mica)
         if: ${{ env.MICA_EXPIRING == 'true' }}
         run: |
+          webhook_url="${{ env.SLACK_WEBHOOK_URL }}"
           curl -X POST -H 'Content-type: application/json' \
           --data '{
             "text": "*MICA GRPC STAGE* \n*DNS Name*: '"${{ env.DNS_NAME_MICA }}"' \n*Days Remaining*: '"${{ env.DAYS_REMAINING_MICA }}"' \n*End Date*: '"${{ env.EXPIRY_DATE_MICA }}"'"
           }' \
-          ${{ env.SLACK_WEBHOOK_URL }}
+          $webhook_url
           
 
 
