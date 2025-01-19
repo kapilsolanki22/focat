@@ -138,18 +138,18 @@ jobs:
           threshold_days_cf=400
       
           # Fetch the expiry date using openssl
-          expiry_date_cf=$(echo | openssl s_client -connect ${{ env.DOMAIN_CF }}:443 -servername ${{ env.DOMAIN_CF }} 2>/dev/null | openssl x509 -noout -dates | grep 'notAfter' | sed 's/notAfter=//')
+          EXPIRY_DATE_CF=$(echo | openssl s_client -connect ${{ env.DOMAIN_CF }}:443 -servername ${{ env.DOMAIN_CF }} 2>/dev/null | openssl x509 -noout -dates | grep 'notAfter' | sed 's/notAfter=//')
       
           # Convert the expiry date to a timestamp
-          expiry_timestamp_cf=$(date -d "$expiry_date" +"%s")
-          current_timestamp_cf=$(date +"%s")
-          days_remaining_cf=$(( (expiry_timestamp_cf - current_timestamp_cf) / (60*60*24) ))
+          EXPIRY_TIMESTAMP_CF=$(date -d "$expiry_date" +"%s")
+          CURRENT_TIMESTAMP_CF=$(date +"%s")
+          DAYS_REMAINING_CF=$(( (expiry_timestamp_cf - current_timestamp_cf) / (60*60*24) ))
 
 
-          # echo "Expiry Date: $EXPIRY_DATE_Cf" && \
-          # echo "Expiry Timestamp: $EXPIRY_TIMESTAMP_Cf" && \
-          # echo "Current Timestamp: $CURRENT_TIMESTAMP_Cf" && \
-          # echo "Days Remaining: $DAYS_REMAINING_Cf"
+          echo "Expiry Date: $EXPIRY_DATE_Cf" && \
+          echo "Expiry Timestamp: $EXPIRY_TIMESTAMP_Cf" && \
+          echo "Current Timestamp: $CURRENT_TIMESTAMP_Cf" && \
+          echo "Days Remaining: $DAYS_REMAINING_Cf"
 
         
       
