@@ -222,9 +222,9 @@ jobs:
           
           # Determine expiration status
           if [ "$DAYS_REMAINING_MICA" -le "$threshold_days_mica" ]; then
-            echo "MICA_EXPIRING=true"
+            echo "MICA_EXPIRING=true"  >> $GITHUB_ENV
           else
-            echo "MICA_EXPIRING=false"
+            echo "MICA_EXPIRING=false"  >> $GITHUB_ENV
           fi
 
 
@@ -237,7 +237,7 @@ jobs:
 #########################################            -- slack_alert_setup --            #########################################
 
       - name: Send alert to Slack (Mica)
-        if: ${{ MICA_EXPIRING == 'true' }}
+        if: ${{ env.MICA_EXPIRING == 'true' }}
         run: |
           curl -X POST -H 'Content-type: application/json' \
           --data '{
