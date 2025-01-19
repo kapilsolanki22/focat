@@ -147,7 +147,7 @@ jobs:
           # Initialize message file and check for expiry
           if [ "$days_remaining" -le "$threshold_days" ]; then
             echo "Following are the SSL certificates for cf-webhook which will expire within ${{ env.ENVIRONMENT }} ENV:\n\nDomain_name: $domain_name Days Remaining: $days_remaining" >> webhook_message.txt
-            certificates_to_notify=true
+            certificates_to_notify_cf=true
             echo "certificates_to_notify=true" >> $GITHUB_ENV
           else
             echo "No certificates for cf.webhook.venu.bank are expiring within $threshold_days days."
@@ -156,7 +156,7 @@ jobs:
 
 
       - name: Send Slack Alert for cf-webhook expiry
-        if: ${{ env.certificates_to_notify == 'true' }}
+        if: ${{ env.certificates_to_notify_cf == 'true' }}
         run: |
           webhook_url="${{ env.SLACK_WEBHOOK_URL }}"
           message_content=$(cat webhook_message.txt)
