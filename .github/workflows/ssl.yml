@@ -256,6 +256,10 @@ jobs:
       - name: Check expiry - Mica
         id: check_expiry_stage
         run: |
+
+          # Set the threshold for sending alerts
+          threshold_days=3000
+          
           EXPIRY_DATE=$(openssl x509 -in cert.pem -noout -enddate | cut -d= -f2) && \
           EXPIRY_TIMESTAMP=$(date -d "$EXPIRY_DATE" +%s) && \
           CURRENT_TIMESTAMP=$(date +%s) && \
@@ -277,7 +281,7 @@ jobs:
           echo "DAYS_REMAINING=$DAYS_REMAINING" >> $GITHUB_ENV
           echo "EXPIRY_DATE=$EXPIRY_DATE" >> $GITHUB_ENV
           
-          if [ "$EXPIRY_TIMESTAMP" -le "$THRESHOLD_TIMESTAMP" ]; then
+          if [ "$EXPIRY_TIMESTAMP" -le "$threshold_days" ]; then
             echo "expiring=true" >> $GITHUB_ENV
           else
             echo "expiring=false" >> $GITHUB_ENV
