@@ -122,6 +122,8 @@ jobs:
 
 
 
+
+
       - name: Check SSL certificate expiry for cf.webhook.venu.bank
         run: |
           # Define domain and threshold
@@ -135,6 +137,12 @@ jobs:
           expiry_timestamp=$(date -d "$expiry_date" +"%s")
           current_timestamp=$(date +"%s")
           days_remaining=$(( (expiry_timestamp - current_timestamp) / (60*60*24) ))
+  
+          echo "expiry_date : $expiry_date"
+          echo "expiry_timestamp : $expiry_timestamp"
+          echo "current_timestamp : $current_timestamp"
+          echo "days_remaining : $days_remaining"
+    
       
           # Initialize message file and check for expiry
           if [ "$days_remaining" -le "$threshold_days" ]; then
