@@ -96,7 +96,7 @@ jobs:
             days_remaining=$(( (expiry_date - current_date) / (60*60*24) ))
             
             # Set the threshold for sending alerts
-            threshold_days=30
+            threshold_days=3000
 
             # Check if the certificate expiry is within the threshold
             if [ "$days_remaining" -le "$threshold_days" ]; then
@@ -128,7 +128,7 @@ jobs:
         run: |
           # Define domain and threshold
           domain_name=$(echo | openssl s_client -connect ${{ env.DOMAIN_CF }}:443 -servername ${{ env.DOMAIN_CF }} 2>/dev/null | openssl x509 -noout -text | grep 'DNS:' | head -n 1 | sed 's/.*DNS://;s/,.*//')
-          threshold_days=30
+          threshold_days=3000
       
           # Fetch the expiry date using openssl
           expiry_date=$(echo | openssl s_client -connect ${{ env.DOMAIN_CF }}:443 -servername ${{ env.DOMAIN_CF }} 2>/dev/null | openssl x509 -noout -dates | grep 'notAfter' | sed 's/notAfter=//')
@@ -161,6 +161,76 @@ jobs:
           webhook_url="${{ env.SLACK_WEBHOOK_URL }}"
           message_content=$(cat webhook_message.txt)
           curl -X POST -H 'Content-type: application/json' --data "{ 'text': '$message_content'}" "$webhook_url"
+
+
+
+
+
+
+
+
+
+
+
+
+      - name: Mica Certs
+        run: |
+          gcloud secrets versions access latest --secret="${{ env.GCLOUD_SECRET_NAME }}" --project="${{ env.GCP_PROJECT_ID }}" > /tmp/gcp_certificate_base64.crt
+          cat /tmp/gcp_certificate_base64.crt | base64 -d > /tmp/gcp_certificate.crt
+      - name: Check certificate expiry and details
+        id: check_expiry_gsm
+        run: |
+          # Extract expiry date
+          EXPIRY_DATE_MICA=$(openssl x509 -in /tmp/gcp_certificate.crt -noout -enddate | cut -d= -f2)
+          EXPIRY_TIMESTAMP_MICA=$(date -d "$EXPIRY_DATE_MICA" +%s)
+          CURRENT_TIMESTAMP_MICA=$(date +%s)
+          THRESHOLD_TIMESTAMP_MICA=$((CURRENT_TIMESTAMP_MICA + THRESHOLD_DAYS*24*60*60))
+
+          # set threshold
+          threshold_days_mica=500
+          
+          # Calculate days remaining
+          DAYS_REMAINING_MICA=$(( (EXPIRY_TIMESTAMP_MICA - CURRENT_TIMESTAMP_MICA) / 86400 ))
+          
+          # Extract DNS name (from SAN if available, otherwise from CN)
+          DNS_NAME_STAGE=$(openssl x509 -in /tmp/gcp_certificate.crt -noout -ext subjectAltName | grep -o 'DNS:[^,]*' | cut -d: -f2 | head -n1)
+          if [ -z "$DNS_NAME_STAGE" ]; then
+            DNS_NAME_STAGE=$(openssl x509 -in /tmp/gcp_certificate.crt -noout -subject | sed -n '/CN/s/^.*CN=//p')
+          fi
+          
+          echo "Expiry Date: $EXPIRY_DATE_MICA" && \
+          echo "Expiry Timestamp: $EXPIRY_TIMESTAMP_MICA" && \
+          echo "Current Timestamp: $CURRENT_TIMESTAMP_MICA" && \
+          echo "Threshold Timestamp: $THRESHOLD_TIMESTAMP_MICA" && \
+          echo "Days Remaining: $DAYS_REMAINING_MICA"
+          
+          # Set environment variables for Slack message
+          echo "CERT_NAME_MICA=Mica Client Cert (Stage)" >> $GITHUB_ENV
+          echo "DNS_NAME_MICA=$DNS_NAME_STAGE" >> $GITHUB_ENV
+          echo "DAYS_REMAINING_MICA=$DAYS_REMAINING_MICA" >> $GITHUB_ENV
+          echo "EXPIRY_DATE_MICA=$EXPIRY_DATE" >> $GITHUB_ENV
+          
+          # Determine expiration status
+          if [ "$DAYS_REMAINING_MICA" -le "$threshold_days_mica" ]; then
+            echo "MICA_EXPIRING=true"  >> $GITHUB_ENV
+          else
+            echo "MICA_EXPIRING=false"  >> $GITHUB_ENV
+          fi
+
+
+
+#########################################            -- slack_alert_setup --            #########################################
+
+      - name: Send alert to Slack (Mica)
+        if: ${{ env.MICA_EXPIRING == 'true' }}
+        run: |
+          curl -X POST -H 'Content-type: application/json' \
+          --data '{
+            "text": "*MICA GRPC STAGE* \n*DNS Name*: '"${{ env.DNS_NAME_MICA }}"' \n*Days Remaining*: '"${{ env.DAYS_REMAINING_MICA }}"' \n*End Date*: '"${{ env.EXPIRY_DATE_MICA }}"'"
+          }' \
+          ${{ env.SLACK_WEBHOOK_URL }}
+          
+
 
 
 
