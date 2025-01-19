@@ -186,11 +186,11 @@ jobs:
 #########################################            -- MICA_CERTS_ALERTS_SETUP --            #########################################
 
 
-      - name: Mica Certs
+      - name: GRPC Certs
         run: |
           gcloud secrets versions access latest --secret="${{ env.GCLOUD_SECRET_NAME }}" --project="${{ env.GCP_PROJECT_ID }}" > /tmp/gcp_certificate_base64.crt
           cat /tmp/gcp_certificate_base64.crt | base64 -d > /tmp/gcp_certificate.crt
-      - name: Check certificate expiry and details
+      - name: Check expiry and details - GRPC
         id: check_expiry_gsm
         run: |
           # Extract expiry date
@@ -231,7 +231,7 @@ jobs:
           fi
 
 
-      - name: Send alert to Slack (Mica)
+      - name: Send alert to Slack (GRPC)
         if: ${{ env.MICA_EXPIRING == 'true' }}
         run: |
           webhook_url="${{ env.SLACK_WEBHOOK_URL }}"
@@ -247,13 +247,13 @@ jobs:
 
 
 
-      - name: Fetch certificate from Kubernetes secrets (Stage)
+      - name: Mica Cert
         id: fetch_cert_stage
         run: |
           kubectl get secret "${{ env.SECRET_NAME }}" -n default -o json | \
-          jq -r '.data[""${{ env.CERT_KEY }}""] | @base64d' | \
+          jq -r '.data["${{ env.CERT_KEY }}"] | @base64d' | \
           awk '/-----BEGIN CERTIFICATE-----/{flag=1} flag{print} /-----END CERTIFICATE-----/{flag=0}' > cert.pem
-      - name: Check certificate expiry (Stage)
+      - name: Check expiry - Mica
         id: check_expiry_stage
         run: |
           EXPIRY_DATE=$(openssl x509 -in cert.pem -noout -enddate | cut -d= -f2) && \
