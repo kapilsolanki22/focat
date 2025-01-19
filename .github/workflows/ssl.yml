@@ -225,35 +225,35 @@ jobs:
           
           # Determine expiration status
           if [ "$DAYS_REMAINING_MICA" -le "$threshold_days_mica" ]; then
-            echo "GRPC_EXPIRING=true"  >> $GITHUB_ENV
+            echo "MICA_EXPIRING=true"  >> $GITHUB_ENV
           else
-            echo "GRPC_EXPIRING=false"  >> $GITHUB_ENV
+            echo "MICA_EXPIRING=false"  >> $GITHUB_ENV
           fi
 
 
-      - name: Send alert to Slack (GRPC)
-        if: ${{ env.GRPC_EXPIRING == 'true' }}
+      - name: Send alert to Slack (MICA)
+        if: ${{ env.MICA_EXPIRING == 'true' }}
         run: |
           webhook_url="${{ env.SLACK_WEBHOOK_URL }}"
           curl -X POST -H 'Content-type: application/json' \
           --data '{
-            "text": "*GRPC ${{ env.ENVIRONMENT }}* \n*DNS Name*: '"${{ env.DNS_NAME_MICA }}"' \n*Days Remaining*: '"${{ env.DAYS_REMAINING_MICA }}"' \n*End Date*: '"${{ env.EXPIRY_DATE_MICA }}"'"
+            "text": "*MICA ${{ env.ENVIRONMENT }}* \n*DNS Name*: '"${{ env.DNS_NAME_MICA }}"' \n*Days Remaining*: '"${{ env.DAYS_REMAINING_MICA }}"' \n*End Date*: '"${{ env.EXPIRY_DATE_MICA }}"'"
           }' \
           $webhook_url
 
 
 
-#########################################            -- MICA_ALERT --            #########################################
+#########################################            -- GRPC_ALERT --            #########################################
 
 
 
-      - name: Mica Cert
+      - name: GRPC Cert
         id: fetch_cert_stage
         run: |
           kubectl get secret "${{ env.SECRET_NAME }}" -n default -o json | \
           jq -r '.data["${{ env.CERT_KEY }}"] | @base64d' | \
           awk '/-----BEGIN CERTIFICATE-----/{flag=1} flag{print} /-----END CERTIFICATE-----/{flag=0}' > cert.pem
-      - name: Check expiry - Mica
+      - name: Check expiry - GRPC
         id: check_expiry_stage
         run: |
 
@@ -283,19 +283,19 @@ jobs:
           
           # Determine expiration status
           if [ "$DAYS_REMAINING" -le "$threshold_days" ]; then
-            echo "MICA_EXPIRING=true"  >> $GITHUB_ENV
+            echo "GRPC_EXPIRING=true"  >> $GITHUB_ENV
           else
-            echo "MICA_EXPIRING=false"  >> $GITHUB_ENV
+            echo GRPC_EXPIRING=false"  >> $GITHUB_ENV
           fi
 
 
       - name: Send alert to Slack (GRPC)
-        if: ${{ env.MICA_EXPIRING == 'true' }}
+        if: ${{ env.GRPC_EXPIRING == 'true' }}
         run: |
           webhook_url="${{ env.SLACK_WEBHOOK_URL }}"
           curl -X POST -H 'Content-type: application/json' \
           --data '{
-            "text": "*MICA ${{ env.ENVIRONMENT }}* \n*DNS Name*: '"$DNS_NAME"' \n*Days Remaining*: '"$DAYS_REMAINING"' \n*End Date*: '"$EXPIRY_DATE"'"
+            "text": "*GRPC ${{ env.ENVIRONMENT }}* \n*DNS Name*: '"$DNS_NAME"' \n*Days Remaining*: '"$DAYS_REMAINING"' \n*End Date*: '"$EXPIRY_DATE"'"
           }' \
           $webhook_url
 
