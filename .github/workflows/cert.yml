@@ -146,10 +146,10 @@ jobs:
           DAYS_REMAINING_CF=$(( (expiry_timestamp_cf - current_timestamp_cf) / (60*60*24) ))
 
 
-          echo "Expiry Date: $EXPIRY_DATE_Cf" && \
-          echo "Expiry Timestamp: $EXPIRY_TIMESTAMP_Cf" && \
-          echo "Current Timestamp: $CURRENT_TIMESTAMP_Cf" && \
-          echo "Days Remaining: $DAYS_REMAINING_Cf"
+          # echo "Expiry Date: $EXPIRY_DATE_Cf" && \
+          # echo "Expiry Timestamp: $EXPIRY_TIMESTAMP_Cf" && \
+          # echo "Current Timestamp: $CURRENT_TIMESTAMP_Cf" && \
+          # echo "Days Remaining: $DAYS_REMAINING_Cf"
 
         
       
