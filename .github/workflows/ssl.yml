@@ -31,12 +31,16 @@ jobs:
             echo "GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID_STAGE }}" >> $GITHUB_ENV
             echo "DOMAIN_CF=${{ secrets.DOMAIN_CF_STAGE }}" >> $GITHUB_ENV
             echo "GCLOUD_SECRET_NAME=${{ secrets.GCLOUD_SECRET_NAME_STAGE }}" >> $GITHUB_ENV
+            echo "SECRET_NAME=${{ secrets.mica_secret_name_stage }}" >> $GITHUB_ENV
+            echo "CERT_KEY=${{ secrets.cert_key_stage }}" >> $GITHUB_ENV
             echo "SLACK_WEBHOOK_URL=${{ secrets.SLACK_WEBHOOK_URL_STAGE }}" >> $GITHUB_ENV
           elif [ "${{ matrix.env }}" == "prod" ]; then
             echo "GCP_SERVICE_ACCOUNT_KEY=$(echo -n '${{ secrets.GCP_SA_KEY_PROD }}' | base64 -w0)" >> $GITHUB_ENV
             echo "GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID_PROD }}" >> $GITHUB_ENV
             echo "DOMAIN_CF=${{ secrets.DOMAIN_CF_PROD }}" >> $GITHUB_ENV
             echo "GCLOUD_SECRET_NAME=${{ secrets.GCLOUD_SECRET_NAME_PROD }}" >> $GITHUB_ENV
+            echo "SECRET_NAME=${{ secrets.mica_secret_name_prod }}" >> $GITHUB_ENV
+            echo "CERT_KEY=${{ secrets.cert_key_prod }}" >> $GITHUB_ENV
             echo "SLACK_WEBHOOK_URL=${{ secrets.SLACK_WEBHOOK_URL_PROD }}" >> $GITHUB_ENV
           fi
           echo "ENVIRONMENT=${{ matrix.env }}" >> $GITHUB_ENV
@@ -70,6 +74,11 @@ jobs:
             gcloud container clusters get-credentials "${CLUSTER_NAME}" --zone "${CLUSTER_ZONE}"
           done
 
+
+
+#########################################            -- SSL_ALERT_CHECK_SETUP --            #########################################
+
+
       - name: Check SSL certificate expiry
         run: |
           # Get the list of ingress names, separated by commas
@@ -96,6 +105,10 @@ jobs:
             expiry_date=$(date -d "$(echo "$validity" | sed 's/Not After : //')" +"%s")
             current_date=$(date +"%s")
             days_remaining=$(( (expiry_date - current_date) / (60*60*24) ))
+
+
+            echo "DAYS REMAINING : $days_remaining"
+
             
             # Set the threshold for sending alerts
             threshold_days=3000
@@ -124,6 +137,8 @@ jobs:
 
 
 
+
+#########################################            -- CF_WEBHOOK_ALERTS_SETUP --            #########################################
 
 
       - name: Check SSL certificate expiry for cf.webhook.venu.bank
@@ -168,11 +183,7 @@ jobs:
 
 
 
-
-
-
-
-
+#########################################            -- MICA_CERTS_ALERTS_SETUP --            #########################################
 
 
       - name: Mica Certs
@@ -210,7 +221,7 @@ jobs:
           echo "CERT_NAME_MICA=Mica Client Cert (Stage)" >> $GITHUB_ENV
           echo "DNS_NAME_MICA=$DNS_NAME_STAGE" >> $GITHUB_ENV
           echo "DAYS_REMAINING_MICA=$DAYS_REMAINING_MICA" >> $GITHUB_ENV
-          echo "EXPIRY_DATE_MICA=$EXPIRY_DATE" >> $GITHUB_ENV
+          echo "EXPIRY_DATE_MICA=$EXPIRY_DATE_MICA" >> $GITHUB_ENV
           
           # Determine expiration status
           if [ "$DAYS_REMAINING_MICA" -le "$threshold_days_mica" ]; then
@@ -220,21 +231,71 @@ jobs:
           fi
 
 
-
-#########################################            -- slack_alert_setup --            #########################################
-
       - name: Send alert to Slack (Mica)
         if: ${{ env.MICA_EXPIRING == 'true' }}
         run: |
           webhook_url="${{ env.SLACK_WEBHOOK_URL }}"
           curl -X POST -H 'Content-type: application/json' \
           --data '{
-            "text": "*MICA GRPC STAGE* \n*DNS Name*: '"${{ env.DNS_NAME_MICA }}"' \n*Days Remaining*: '"${{ env.DAYS_REMAINING_MICA }}"' \n*End Date*: '"${{ env.EXPIRY_DATE_MICA }}"'"
+            "text": "*GRPC ${{ env.ENVIRONMENT }}* \n*DNS Name*: '"${{ env.DNS_NAME_MICA }}"' \n*Days Remaining*: '"${{ env.DAYS_REMAINING_MICA }}"' \n*End Date*: '"${{ env.EXPIRY_DATE_MICA }}"'"
           }' \
           $webhook_url
+
+
+
+#########################################            -- MICA_ALERT --            #########################################
+
+
+
+      - name: Fetch certificate from Kubernetes secrets (Stage)
+        id: fetch_cert_stage
+        run: |
+          kubectl get secret "${{ env.SECRET_NAME }}" -n default -o json | \
+          jq -r '.data[""${{ env.CERT_KEY }}""] | @base64d' | \
+          awk '/-----BEGIN CERTIFICATE-----/{flag=1} flag{print} /-----END CERTIFICATE-----/{flag=0}' > cert.pem
+      - name: Check certificate expiry (Stage)
+        id: check_expiry_stage
+        run: |
+          EXPIRY_DATE=$(openssl x509 -in cert.pem -noout -enddate | cut -d= -f2) && \
+          EXPIRY_TIMESTAMP=$(date -d "$EXPIRY_DATE" +%s) && \
+          CURRENT_TIMESTAMP=$(date +%s) && \
+          THRESHOLD_TIMESTAMP=$(($CURRENT_TIMESTAMP + 30*24*60*60)) && \
+          DAYS_REMAINING=$(( (EXPIRY_TIMESTAMP - CURRENT_TIMESTAMP) / 86400 )) && \
+          echo "Expiry Date: $EXPIRY_DATE" && \
+          echo "Expiry Timestamp: $EXPIRY_TIMESTAMP" && \
+          echo "Current Timestamp: $CURRENT_TIMESTAMP" && \
+          echo "Threshold Timestamp: $THRESHOLD_TIMESTAMP" && \
+          echo "Days Remaining: $DAYS_REMAINING"
           
+          DNS_NAME=$(openssl x509 -in cert.pem -noout -ext subjectAltName | grep -o 'DNS:[^,]*' | cut -d: -f2 | head -n1)
+          if [ -z "$DNS_NAME" ]; then
+            DNS_NAME=$(openssl x509 -in cert.pem -noout -subject | sed -n '/CN/s/^.*CN=//p')
+          fi
+          
+          echo "CERT_NAME=Mica Server Cert (Stage)" >> $GITHUB_ENV
+          echo "DNS_NAME=$DNS_NAME" >> $GITHUB_ENV
+          echo "DAYS_REMAINING=$DAYS_REMAINING" >> $GITHUB_ENV
+          echo "EXPIRY_DATE=$EXPIRY_DATE" >> $GITHUB_ENV
+          
+          if [ "$EXPIRY_TIMESTAMP" -le "$THRESHOLD_TIMESTAMP" ]; then
+            echo "expiring=true" >> $GITHUB_ENV
+          else
+            echo "expiring=false" >> $GITHUB_ENV
+          fi
+      - name: Send alert to Slack (Stage)
+        if: ${{ env.expiring == 'true' }}
+        run: |
+          webhook_url="${{ env.SLACK_WEBHOOK_URL }}"
+          curl -X POST -H 'Content-type: application/json' \
+          --data '{
+            "text": "*MICA ${ env.ENVIRONMENT }* \n*DNS Name*: '"$DNS_NAME"' \n*Days Remaining*: '"$DAYS_REMAINING"' \n*End Date*: '"$EXPIRY_DATE"'"
+          }' \
+          $webhook_url
 
 
+
+
+#########################################            -- slack_alert_setup ( ON FAILURE ) --            #########################################
 
 
 
