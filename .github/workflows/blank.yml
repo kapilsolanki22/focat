@@ -1,4 +1,4 @@
-name: MICA & GRPC Cert Expiry Check (Virtual Terminal)
+name: MICA & GRPC Cert (Virtual Terminal)
 
 on:
   workflow_dispatch:  # Allows manual trigger
