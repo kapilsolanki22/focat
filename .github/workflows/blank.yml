@@ -90,10 +90,11 @@ jobs:
       - name: Send alert to Slack (Stage)
         if: ${{ env.EXPIRING == 'true' }}
         run: |
+          webhook_url = ${{ env.SLACK_WEBHOOK_URL }}
           curl -X POST -H 'Content-type: application/json' \
           --data '{
             "text": "*Gateway venu bank Stage* \n*DNS Name*: '"$STAGE_DNS_NAME"' \n*Days Remaining*: '"$STAGE_DAYS_REMAINING"' \n*End Date*: '"$STAGE_EXPIRY_DATE"'"
           }' \
-          ${{ secrets.SLACK_WEBHOOK_URL_STAGE }}
+          $webhook_url
 
 
