@@ -285,7 +285,7 @@ jobs:
           if [ "$DAYS_REMAINING" -le "$threshold_days" ]; then
             echo "GRPC_EXPIRING=true"  >> $GITHUB_ENV
           else
-            echo GRPC_EXPIRING=false"  >> $GITHUB_ENV
+            echo "GRPC_EXPIRING=false"  >> $GITHUB_ENV
           fi
 
 
